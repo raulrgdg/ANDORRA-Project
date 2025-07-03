@@ -15,6 +15,8 @@ void loop() {
   int adc_17 = analogRead(17);
   int adc_15 = analogRead(15);
 
+
+
   // Print as CSV: adc23,adc21,adc19,adc17,adc15
   Serial.print(adc_23); Serial.print(",");
   Serial.print(adc_21); Serial.print(",");
