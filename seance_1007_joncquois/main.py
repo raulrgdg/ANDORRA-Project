@@ -22,7 +22,7 @@ ELEMENT_SIZE = 4  # sizeof(int)
 ##19#########21###
 ##################
 # Load the binary file
-file_path = "data_1752195410.bin"
+file_path = "data_1752195397.bin"
 with open(file_path, "rb") as f:
     data_bytes = f.read()
 
