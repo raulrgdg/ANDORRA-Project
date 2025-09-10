@@ -4,9 +4,12 @@ import os
 
 # Paramètres
 binary_path = 'data_1752195445.bin'
-
 CHANNELS = ['adc_15', 'adc_17', 'adc_19', 'adc_21', 'adc_23']
 NUM_CHANNELS = 6  # 5 ADCs + 1 timestamp
+
+# Choisir le canal à afficher (0-4 pour les 5 canaux ADC)
+SELECTED_CHANNEL = 0  # Changez ce numéro selon le canal connecté (0=adc_15, 1=adc_17, 2=adc_19, 3=adc_21, 4=adc_23)
+
 
 # Lire le fichier binaire
 data = np.fromfile(binary_path, dtype=np.int32)
@@ -33,16 +36,14 @@ print(adc_data)
 print(timestamps)
 print(time_s)
 
-# Plot
-fig, axs = plt.subplots(5, 1, figsize=(10, 12), sharex=True)
+# Plot - seulement le canal sélectionné
 pins = [15, 17, 19, 21, 23]
-for i in range(5):
-    axs[i].plot(time_s, adc_data[:, i])
-    axs[i].set_title(f"ADC Pin {pins[i]}")
-    axs[i].set_ylabel("Valeur ADC")
-    axs[i].grid(True)
-
-axs[-1].set_xlabel('Temps (s)')
+plt.figure(figsize=(10, 6))
+plt.plot(time_s, adc_data[:, SELECTED_CHANNEL])
+plt.title(f"ADC Pin {pins[SELECTED_CHANNEL]} - Canal {SELECTED_CHANNEL}")
+plt.xlabel('Temps (s)')
+plt.ylabel("Valeur ADC")
+plt.grid(True)
 plt.tight_layout()
 plt.show()
 
