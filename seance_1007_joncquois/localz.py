@@ -160,7 +160,6 @@ else:
         return np.sum(losses)
 
     # Optimisation de la position de l'impact
-    # x0 est l'estimation initiale, le centre de la plaque est un bon point de départ.
     # Les bornes sont importantes pour maintenir la solution dans les limites de la plaque.
     res = minimize(
         loss_fn,

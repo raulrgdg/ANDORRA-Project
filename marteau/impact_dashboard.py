@@ -11,7 +11,7 @@ with st.sidebar:
     duration = st.slider("Durée d'acquisition (s)", 1, 10, 5)
     fs = st.number_input("Fréquence d’échantillonnage (Hz)", value=48000)
     device = st.number_input("ID de la carte son (input)", value=6)
-    sensitivity = st.number_input("Sensibilité capteur (V/N)", value=0.00225, step=0.0001, format="%.6f")
+    sensitivity = st.number_input("Sensibilité capteur (V/N)", value=0.002251, step=0.0001, format="%.6f")
     threshold = st.slider("Seuil relatif pour détection", 0.1, 0.9, 0.4)
 
 if st.button("🎙️ Lancer l'enregistrement"):

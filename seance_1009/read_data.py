@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 
 # Paramètres
-binary_path = 'data_1752195445.bin'
+binary_path = 'data_1546300840.bin'
 CHANNELS = ['adc_15', 'adc_17', 'adc_19', 'adc_21', 'adc_23']
 NUM_CHANNELS = 6  # 5 ADCs + 1 timestamp
 
