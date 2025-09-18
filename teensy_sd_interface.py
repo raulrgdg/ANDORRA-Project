@@ -146,71 +146,102 @@ class TeensySDInterface:
     def get_file(self, filename: str, output_dir: str = "downloaded_files") -> bool:
         """
         Télécharge un fichier depuis la carte SD.
-
-        Args:
-            filename: Nom du fichier à télécharger
-            output_dir: Répertoire de destination
-
-        Returns:
-            True si le téléchargement réussit, False sinon
         """
         print(f"Téléchargement de {filename}...")
 
-        # Créer le répertoire de destination si nécessaire
         os.makedirs(output_dir, exist_ok=True)
 
+        # Nettoyer le buffer d'entrée au cas où des sorties précédentes traînent
+        if self.serial_conn.in_waiting:
+            try:
+                _ = self.serial_conn.read(self.serial_conn.in_waiting)
+            except Exception:
+                pass
+
         # Envoyer la commande GET
-        response = self.send_command(f"GET {filename}")
+        self.serial_conn.write(f"GET {filename}\n".encode("utf-8"))
+        self.serial_conn.flush()
 
-        if "ERROR: File not found" in response:
-            print(f"Erreur: Fichier {filename} non trouvé")
+        # Lire la ligne d’en-tête, ignorer les lignes parasites (ex: "fichier (taille bytes)")
+        header = ""
+        start_header_time = time.time()
+        while time.time() - start_header_time < 5.0:
+            line = self.serial_conn.readline().decode("utf-8", errors="ignore").strip()
+            if not line:
+                continue
+            if line.startswith("SENDING:"):
+                header = line
+                break
+            # Ignorer les autres lignes (LIST résiduel, bannière, etc.)
+        if not header:
+            print("Erreur: Aucune en-tête SENDING reçue")
             return False
 
-        if not response.startswith("SENDING:"):
-            print(f"Erreur: Réponse inattendue: {response}")
-            return False
-
-        # Extraire la taille du fichier
         try:
-            file_size = int(response.split(':')[-1])
+            # Format: SENDING:filename:size
+            parts = header.split(":")
+            file_size = int(parts[-1])
             print(f"Taille du fichier: {file_size} bytes")
-        except:
-            print("Impossible de déterminer la taille du fichier")
-            file_size = 0
+        except Exception as e:
+            print(f"Impossible de déterminer la taille du fichier ({e})")
+            file_size = None
 
-        # Lire les données du fichier
+        # Lire les données binaires
         file_data = b""
         start_time = time.time()
 
-        while time.time() - start_time < 30:  # Timeout de 30 secondes
-            if self.serial_conn.in_waiting > 0:
-                data = self.serial_conn.read(self.serial_conn.in_waiting)
-                file_data += data
+        if file_size is not None and file_size >= 0:
+            # Lire exactement file_size octets
+            while len(file_data) < file_size and (time.time() - start_time) < 30:
+                # Lire au plus le nécessaire restant ou ce qui est dispo
+                to_read = min(max(self.serial_conn.in_waiting, 1), file_size - len(file_data))
+                chunk = self.serial_conn.read(to_read)
+                if not chunk:
+                    time.sleep(0.01)
+                    continue
+                file_data += chunk
 
-                # Vérifier si on a reçu la fin du fichier
-                if b"END_OF_FILE" in file_data:
-                    break
+            # Consommer le marqueur END_OF_FILE pour nettoyer le buffer
+            end_marker_buf = b""
+            end_start = time.time()
+            while (time.time() - end_start) < 2.0:
+                if self.serial_conn.in_waiting > 0:
+                    end_marker_buf += self.serial_conn.read(self.serial_conn.in_waiting)
+                    if b"END_OF_FILE" in end_marker_buf:
+                        break
+                else:
+                    time.sleep(0.01)
+        else:
+            # Taille inconnue: lire jusqu'au marqueur END_OF_FILE
+            while time.time() - start_time < 30:  # timeout
+                if self.serial_conn.in_waiting > 0:
+                    data = self.serial_conn.read(self.serial_conn.in_waiting)
+                    file_data += data
+                    # Vérifier la fin
+                    if b"END_OF_FILE" in file_data:
+                        break
+                time.sleep(0.01)
 
-            time.sleep(0.01)
-
-        # Nettoyer les données (enlever END_OF_FILE)
-        if b"END_OF_FILE" in file_data:
-            file_data = file_data.split(b"END_OF_FILE")[0]
+            # Nettoyer les données en retirant le marqueur
+            if b"END_OF_FILE" in file_data:
+                file_data = file_data.split(b"END_OF_FILE")[0]
 
         if not file_data:
             print("Aucune donnée reçue")
             return False
 
+        if file_size and len(file_data) != file_size:
+            print(f"Avertissement: taille reçue {len(file_data)} != taille annoncée {file_size}")
+
         # Sauvegarder le fichier
         output_path = os.path.join(output_dir, filename)
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             f.write(file_data)
 
         print(f"Fichier sauvegardé: {output_path}")
         print(f"Taille reçue: {len(file_data)} bytes")
 
         return True
-
     def get_help(self) -> str:
         """Affiche l'aide des commandes disponibles."""
         return self.send_command("HELP")
