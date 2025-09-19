@@ -5,10 +5,10 @@ import os
 # Paramètres
 import os
 
-files = os.listdir('../seance_tir_5/')
+files = os.listdir('../downloaded_files/')
 
 for file in files:
-    binary_path = os.path.join('../seance_tir_5/', file)
+    binary_path = os.path.join('../downloaded_files/', file)
 
 
     CHANNELS = ['adc_15', 'adc_17', 'adc_19', 'adc_21', 'adc_23']

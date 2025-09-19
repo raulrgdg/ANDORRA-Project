@@ -246,6 +246,80 @@ class TeensySDInterface:
         """Affiche l'aide des commandes disponibles."""
         return self.send_command("HELP")
 
+    def delete_file(self, filename: str) -> bool:
+        """Supprime un fichier sur la carte SD via la commande DEL."""
+        if not self.serial_conn or not self.serial_conn.is_open:
+            raise Exception("Pas de connexion série active")
+
+        # Nettoyer le buffer
+        if self.serial_conn.in_waiting:
+            try:
+                _ = self.serial_conn.read(self.serial_conn.in_waiting)
+            except Exception:
+                pass
+
+        # Envoyer la commande DEL
+        self.serial_conn.write(f"DEL {filename}\n".encode("utf-8"))
+        self.serial_conn.flush()
+
+        # Attendre une réponse simple sur une ligne
+        start_time = time.time()
+        response = ""
+        while time.time() - start_time < 5.0:
+            line = self.serial_conn.readline().decode("utf-8", errors="ignore").strip()
+            if not line:
+                continue
+            response = line
+            break
+
+        if not response:
+            return False
+
+        if response.startswith("DELETED:"):
+            return True
+        if response.startswith("ERROR:"):
+            print(response)
+            return False
+        # Réponse inattendue, considérer comme échec
+        print(f"Réponse inattendue: {response}")
+        return False
+
+    def delete_all(self) -> int:
+        """Supprime tous les fichiers (commande DELALL). Retourne le nombre supprimé, ou -1 en cas d'erreur."""
+        if not self.serial_conn or not self.serial_conn.is_open:
+            raise Exception("Pas de connexion série active")
+
+        # Nettoyer le buffer
+        if self.serial_conn.in_waiting:
+            try:
+                _ = self.serial_conn.read(self.serial_conn.in_waiting)
+            except Exception:
+                pass
+
+        self.serial_conn.write(b"DELALL\n")
+        self.serial_conn.flush()
+
+        start_time = time.time()
+        response = ""
+        while time.time() - start_time < 10.0:
+            line = self.serial_conn.readline().decode("utf-8", errors="ignore").strip()
+            if not line:
+                continue
+            response = line
+            break
+
+        if response.startswith("DELETED_ALL:"):
+            try:
+                return int(response.split(":", 1)[1])
+            except Exception:
+                return -1
+        if response.startswith("ERROR:" ):
+            print(response)
+            return -1
+        if response:
+            print(f"Réponse inattendue: {response}")
+        return -1
+
     def interactive_mode(self):
         """Mode interactif pour utiliser l'interface."""
         print("\n=== Interface Teensy SD ===")
@@ -276,6 +350,19 @@ class TeensySDInterface:
                         self.get_file(filename)
                     else:
                         print("Usage: get <filename>")
+                elif command.lower().startswith('del '):
+                    filename = command[4:].strip()
+                    if filename:
+                        ok = self.delete_file(filename)
+                        print("Supprimé" if ok else "Suppression échouée")
+                    else:
+                        print("Usage: del <filename>")
+                elif command.lower() == 'delall':
+                    n = self.delete_all()
+                    if n >= 0:
+                        print(f"Supprimés: {n}")
+                    else:
+                        print("Suppression globale échouée")
                 elif command.lower() == 'help':
                     print(self.get_help())
                 else:

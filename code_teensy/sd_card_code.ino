@@ -32,6 +32,7 @@ uint32_t array_index_2 = 0;
 
 bool detected = false;
 bool saving = false;
+uint32_t detection_us = 0; // micros() at detection to ensure unique filenames
 
 using namespace std::chrono;
 std::chrono::time_point<std::chrono::steady_clock, std::chrono::microseconds> start;
@@ -46,6 +47,7 @@ void fill_array(int *array, size_t T, int index) {
         if (array[base + i] > 50 && !detected) {
             Serial.println("Analog input detected");
             start = std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::steady_clock::now());
+            detection_us = micros();
             detected = true;
         }
     }
@@ -96,6 +98,55 @@ void sendFile(const char* filename) {
     file.close();
 }
 
+void deleteFile(const char* filename) {
+    if (!filename || !*filename) {
+        Serial.println("ERROR: Invalid filename");
+        return;
+    }
+
+    // Vérifier l'existence
+    if (!SD.exists(filename)) {
+        Serial.print("ERROR: File not found: ");
+        Serial.println(filename);
+        return;
+    }
+
+    // Tenter la suppression
+    if (SD.remove(filename)) {
+        Serial.print("DELETED:");
+        Serial.println(filename);
+    } else {
+        Serial.print("ERROR: Delete failed: ");
+        Serial.println(filename);
+    }
+}
+
+void deleteAllFiles() {
+    File root = SD.open("/");
+    if (!root) {
+        Serial.println("ERROR: Cannot open root");
+        return;
+    }
+
+    uint32_t deletedCount = 0;
+    while (true) {
+        File entry = root.openNextFile();
+        if (!entry) break;
+        if (!entry.isDirectory()) {
+            String name = entry.name();
+            entry.close();
+            if (SD.remove(name.c_str())) {
+                deletedCount++;
+            }
+        } else {
+            entry.close();
+        }
+    }
+    root.close();
+    Serial.print("DELETED_ALL:");
+    Serial.println(deletedCount);
+}
+
 void handleSerialCommand() {
     if (Serial.available()) {
         String command = Serial.readStringUntil('\n');
@@ -108,12 +159,22 @@ void handleSerialCommand() {
             Serial.println("Available commands:");
             Serial.println("LIST - List all files on SD card");
             Serial.println("GET <filename> - Download a file");
+            Serial.println("DEL <filename> - Delete a file");
+            Serial.println("DELALL - Delete all files");
             Serial.println("HELP - Show this help");
         }
         else if (command.startsWith("GET ")) {
             String filename = command.substring(4);
             filename.trim();
             sendFile(filename.c_str());
+        }
+        else if (command.startsWith("DEL ")) {
+            String filename = command.substring(4);
+            filename.trim();
+            deleteFile(filename.c_str());
+        }
+        else if (command == "DELALL") {
+            deleteAllFiles();
         }
         else {
             Serial.print("Unknown command: ");
@@ -160,7 +221,8 @@ void loop() {
             saving = true;
         }
     } else {
-        String filename = "data_" + String(rtc_get()) + ".bin";
+        // Include microseconds at detection to avoid filename collisions within the same second
+        String filename = "data_" + String(rtc_get()) + "_" + String(detection_us) + ".bin";
 
         Serial.print("FILENAME:");
         Serial.println(filename);
@@ -187,6 +249,7 @@ void loop() {
         saving = false;
         array_index = 0;
         array_index_2 = 0;
+        detection_us = 0;
         memset(after_detection, 0, sizeof(after_detection));
         memset(data, 0, sizeof(data));
     }
