@@ -210,8 +210,8 @@ SENSOR_COORDS_ALL = np.array([
 ])
 
 # Définis ici la position réelle de l'impact pour la comparaison (en cm)
-ACTUAL_IMPACT_X = 7.5 # Exemple : centre de la plaque
-ACTUAL_IMPACT_Y = 7.5
+ACTUAL_IMPACT_X = 12 # Exemple : centre de la plaque
+ACTUAL_IMPACT_Y = 12
 ACTUAL_IMPACT_LOCATION = np.array([ACTUAL_IMPACT_X, ACTUAL_IMPACT_Y])
 
 # Vitesse de propagation de l'onde dans le matériau de la plaque (en cm/s)
