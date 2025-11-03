@@ -45,9 +45,9 @@ def main() -> None:
     fuerza= muestras/0.00025
     plt.figure()
     plt.plot(tiempo, fuerza,linestyle="-", linewidth=1)
-    plt.title(f"Muestras ADC - {adc_path.name}")
+    plt.title(f"Force(t) - {adc_path.name}")
     plt.xlabel("Tiempo [s]")
-    plt.ylabel("ADC")
+    plt.ylabel("force")
     plt.grid(True, which="both", linestyle="--", linewidth=0.5)
     plt.tight_layout()
     plt.show()
